@@ -1,24 +1,21 @@
-using Microsoft.EntityFrameworkCore;
-using LibraryManagementSystem.Data;
-using LibraryManagementSystem.Models;
 using Microsoft.AspNetCore.Mvc;
 using LibraryManagementSystem.DTOs;
-
-
-
+using LibraryManagementSystem.Services;
+using Microsoft.AspNetCore.Authorization;
 namespace LibraryManagementSystem.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     public class CategoriesController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly ICategoryService _categoryService;
 
-        public CategoriesController(AppDbContext context)
+        public CategoriesController(ICategoryService categoryService)
         {
-            _context = context;
+            _categoryService = categoryService;
         }
-[HttpGet]
+
+        [HttpGet]
         public async Task<IActionResult> GetCategories(
             int pageNumber = 1,
             int pageSize = 10,
@@ -26,111 +23,51 @@ namespace LibraryManagementSystem.Controllers
             string? sortBy = null,
             bool sortDescending = false)
         {
-            var query = _context.Categories.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                query = query.Where(c => c.Name.Contains(search));
-            }
-
-            query = sortBy?.ToLower() switch
-            {
-                "name" => sortDescending ? query.OrderByDescending(c => c.Name) : query.OrderBy(c => c.Name),
-                _ => query.OrderBy(c => c.Id)
-            };
-
-            var totalCount = await query.CountAsync();
-
-            var categories = await query
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .Select(c => new CategoryResponseDto
-                {
-                    Id = c.Id,
-                    Name = c.Name,
-                    Description = c.Description,
-                    CreatedAt = c.CreatedAt
-                })
-                .ToListAsync();
-
-            return Ok(new
-            {
-                TotalCount = totalCount,
-                PageNumber = pageNumber,
-                PageSize = pageSize,
-                Items = categories
-            });
+            var result = await _categoryService.GetAllAsync(pageNumber, pageSize, search, sortBy, sortDescending);
+            return Ok(ApiResponse<object>.SuccessResponse(result, "Categories retrieved successfully."));
         }
 
-        
-        // GET by Id
         [HttpGet("{id}")]
-         public async Task<ActionResult<CategoryResponseDto>> GetCategory(int id)
-         {
-             var category = await _context.Categories
-             .Where(c => c.Id == id)
-             .Select(c => new CategoryResponseDto
-              {
-                   Id = c.Id,
-                  Name = c.Name,
-                  Description = c.Description,
-                  CreatedAt = c.CreatedAt
-               })
-            .FirstOrDefaultAsync();
+        public async Task<IActionResult> GetCategory(int id)
+        {
+            var category = await _categoryService.GetByIdAsync(id);
+            if (category == null)
+                return NotFound(ApiResponse<object>.FailResponse($"Category with id {id} not found.", 404));
 
-             if (category == null)
-           {
-           return NotFound();
-     }
+            return Ok(ApiResponse<object>.SuccessResponse(category, "Category retrieved successfully."));
+        }
 
-    return category;
-}
-
-        // create
         [HttpPost]
-        public async Task<ActionResult<Category>> PostCategory(Category category)
+        [Authorize]
+        public async Task<IActionResult> PostCategory(CategoryCreateDto dto)
         {
-            _context.Categories.Add(category);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetCategory", new { id = category.Id }, category);
+            var created = await _categoryService.CreateAsync(dto);
+            return StatusCode(201, ApiResponse<object>.SuccessResponse(created, "Category created successfully.", 201));
         }
 
-        // update
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutCategory(int id, Category category)
+        [Authorize]
+        public async Task<IActionResult> PutCategory(int id, CategoryUpdateDto dto)
         {
-            if (id != category.Id)
-            {
-                return BadRequest();
-            }
+            var success = await _categoryService.UpdateAsync(id, dto);
+            if (!success)
+                return NotFound(ApiResponse<object>.FailResponse($"Category with id {id} not found.", 404));
 
-            _context.Entry(category).State = EntityState.Modified;
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            return Ok(ApiResponse<object>.SuccessResponse(null, "Category updated successfully."));
         }
 
-        // delete
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<IActionResult> DeleteCategory(int id)
         {
-            var category = await _context.Categories.FindAsync(id);
-            if (category == null)
+            var (success, errorMessage) = await _categoryService.DeleteAsync(id);
+            if (!success)
             {
-                return NotFound();
+                var statusCode = errorMessage == "Category not found." ? 404 : 400;
+                return StatusCode(statusCode, ApiResponse<object>.FailResponse(errorMessage!, statusCode));
             }
 
-            var hasBooks = await _context.Books.AnyAsync(b => b.CategoryId == id);
-            if (hasBooks)
-            {
-                return BadRequest("Cannot delete a category that still has books.");
-            }
-
-            category.IsDeleted = true;
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            return Ok(ApiResponse<object>.SuccessResponse(null, "Category deleted successfully."));
         }
     }
 }

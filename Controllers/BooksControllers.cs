@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using LibraryManagementSystem.Data;
-using LibraryManagementSystem.Models;
 using LibraryManagementSystem.DTOs;
+using LibraryManagementSystem.Services;
+using Microsoft.AspNetCore.Authorization; 
 
 namespace LibraryManagementSystem.Controllers
 {
@@ -10,15 +9,13 @@ namespace LibraryManagementSystem.Controllers
     [ApiController]
     public class BooksController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IBookService _bookService;
 
-        public BooksController(AppDbContext context)
+        public BooksController(IBookService bookService)
         {
-            _context = context;
+            _bookService = bookService;
         }
 
-        // GET ALL
-        // GET ALL
         [HttpGet]
         public async Task<IActionResult> GetBooks(
             int pageNumber = 1,
@@ -28,132 +25,54 @@ namespace LibraryManagementSystem.Controllers
             string? sortBy = null,
             bool sortDescending = false)
         {
-            var query = _context.Books.Include(b => b.Category).AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                query = query.Where(b => b.Title.Contains(search) || b.Author.Contains(search));
-            }
-
-            if (categoryId.HasValue)
-            {
-                query = query.Where(b => b.CategoryId == categoryId.Value);
-            }
-
-            query = sortBy?.ToLower() switch
-            {
-                "title" => sortDescending ? query.OrderByDescending(b => b.Title) : query.OrderBy(b => b.Title),
-                "price" => sortDescending ? query.OrderByDescending(b => b.Price) : query.OrderBy(b => b.Price),
-                _ => query.OrderBy(b => b.Id)
-            };
-
-            var totalCount = await query.CountAsync();
-
-            var books = await query
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .Select(b => new BookResponseDto
-                {
-                    Id = b.Id,
-                    Title = b.Title,
-                    Author = b.Author,
-                    Price = b.Price,
-                    Quantity = b.Quantity,
-                    CategoryId = b.CategoryId,
-                    CategoryName = b.Category!.Name
-                })
-                .ToListAsync();
-
-            return Ok(new
-            {
-                TotalCount = totalCount,
-                PageNumber = pageNumber,
-                PageSize = pageSize,
-                Items = books
-            }
-        );
+            var result = await _bookService.GetAllAsync(pageNumber, pageSize, search, categoryId, sortBy, sortDescending);
+            return Ok(ApiResponse<object>.SuccessResponse(result, "Books retrieved successfully."));
         }
 
-      
-
-        // GET by Id
         [HttpGet("{id}")]
-        public async Task<ActionResult<BookResponseDto>> GetBook(int id)
-     {
-          var book = await _context.Books
-        .Include(b => b.Category)
-        .Where(b => b.Id == id)
-        .Select(b => new BookResponseDto
-            {
-                Id = b.Id,
-                Title = b.Title,
-                Author = b.Author,
-                Price = b.Price,
-                Quantity = b.Quantity,
-                CategoryId = b.CategoryId,
-                CategoryName = b.Category!.Name
-          })
-        .FirstOrDefaultAsync(); 
+        public async Task<IActionResult> GetBook(int id)
+        {
+            var book = await _bookService.GetByIdAsync(id);
+            if (book == null)
+                return NotFound(ApiResponse<object>.FailResponse($"Book with id {id} not found.", 404));
 
-    if (book == null)
-    {
-        return NotFound();
-    }
+            return Ok(ApiResponse<object>.SuccessResponse(book, "Book retrieved successfully."));
+        }
 
-    return book;
-}
-
-        // create
         [HttpPost]
-        public async Task<ActionResult<Book>> PostBook(Book book)
+        [Authorize]
+        public async Task<IActionResult> PostBook(BookCreateDto dto)
         {
-            var categoryExists = await _context.Categories.AnyAsync(c => c.Id == book.CategoryId);
-            if (!categoryExists)
-            {
-                return BadRequest("The specified CategoryId does not exist.");
-            }
+            var (result, error) = await _bookService.CreateAsync(dto);
+            if (error != null)
+                return BadRequest(ApiResponse<object>.FailResponse(error, 400));
 
-            _context.Books.Add(book);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetBook", new { id = book.Id }, book);
+            return StatusCode(201, ApiResponse<object>.SuccessResponse(result, "Book created successfully.", 201));
         }
 
-        // update
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutBook(int id, Book book)
+        [Authorize]
+        public async Task<IActionResult> PutBook(int id, BookUpdateDto dto)
         {
-            if (id != book.Id)
+            var (success, error) = await _bookService.UpdateAsync(id, dto);
+            if (!success)
             {
-                return BadRequest();
+                var statusCode = error == "Book not found." ? 404 : 400;
+                return StatusCode(statusCode, ApiResponse<object>.FailResponse(error!, statusCode));
             }
 
-            var categoryExists = await _context.Categories.AnyAsync(c => c.Id == book.CategoryId);
-            if (!categoryExists)
-            {
-                return BadRequest("The specified CategoryId does not exist.");
-            }
-
-            _context.Entry(book).State = EntityState.Modified;
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            return Ok(ApiResponse<object>.SuccessResponse(null, "Book updated successfully."));
         }
 
-        // delete (soft delete)
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<IActionResult> DeleteBook(int id)
         {
-            var book = await _context.Books.FindAsync(id);
-            if (book == null)
-            {
-                return NotFound();
-            }
+            var success = await _bookService.DeleteAsync(id);
+            if (!success)
+                return NotFound(ApiResponse<object>.FailResponse($"Book with id {id} not found.", 404));
 
-            book.IsDeleted = true;
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            return Ok(ApiResponse<object>.SuccessResponse(null, "Book deleted successfully."));
         }
     }
 }
