@@ -6,7 +6,7 @@ namespace LibraryManagementSystem.Models
     {
         public int Id { get; set; }
 
-         [Required(ErrorMessage = "Title is required.")]
+        [Required(ErrorMessage = "Title is required.")]
         public string Title { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Author is required.")]
@@ -19,11 +19,7 @@ namespace LibraryManagementSystem.Models
         public int Quantity { get; set; }
         public bool IsDeleted { get; set; } = false;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-        // Foreign Key
         public int CategoryId { get; set; }
-
-        // Navigation property
         public Category? Category { get; set; }
     }
 }
