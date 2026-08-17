@@ -14,11 +14,13 @@ namespace LibraryManagementSystem.Controllers
         {
             _authService = authService;
         }
+        
+  
 
         [HttpPost("register")]
-        public IActionResult Register([FromBody] RegisterDto dto)
+        public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
-            var (success, error) = _authService.Register(dto.Username, dto.Password);
+            var (success, error) = await _authService.RegisterAsync(dto.Username,dto.Email , dto.Password);
 
             if (!success)
                 return BadRequest(ApiResponse<object>.FailResponse(error!, 400));
@@ -27,14 +29,36 @@ namespace LibraryManagementSystem.Controllers
         }
 
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginDto dto)
+        public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
-            var (success, token) = _authService.Login(dto.Username, dto.Password);
+            var (success, token) = await _authService.LoginAsync(dto.Username, dto.Password);
 
             if (!success)
                 return Unauthorized(ApiResponse<object>.FailResponse("Invalid username or password.", 401));
 
             return Ok(ApiResponse<object>.SuccessResponse(new { token }, "Login successful."));
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        {
+            var (success, error) = await _authService.ForgotPasswordAsync(dto.Email);
+
+            if (!success)
+                return BadRequest(ApiResponse<object>.FailResponse(error!, 400));
+
+            return Ok(ApiResponse<object>.SuccessResponse(new { }, "If the email exists, a reset code has been sent."));
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            var (success, error) = await _authService.ResetPasswordAsync(dto.Username, dto.ResetCode, dto.NewPassword);
+
+            if (!success)
+                return BadRequest(ApiResponse<object>.FailResponse(error!, 400));
+
+            return Ok(ApiResponse<object>.SuccessResponse(new { }, "Password reset successfully."));
         }
     }
 }

@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using LibraryManagementSystem.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 namespace LibraryManagementSystem.Data
 
 {
-    public class AppDbContext : DbContext
+    public class AppDbContext : IdentityDbContext<ApplicationUser>
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
@@ -15,7 +17,6 @@ namespace LibraryManagementSystem.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
 
             //Soft Delete
             modelBuilder.Entity<Category>().HasQueryFilter(c => !c.IsDeleted);

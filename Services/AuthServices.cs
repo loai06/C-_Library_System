@@ -1,44 +1,84 @@
+using Microsoft.AspNetCore.Identity;
+using LibraryManagementSystem.Models;
+using System.Security.Cryptography;
+
 namespace LibraryManagementSystem.Services
 {
     public class AuthService : IAuthService
     {
+        private readonly UserManager<ApplicationUser> _userManager;
         private readonly ITokenService _tokenService;
+        private readonly IEmailService _emailService;
 
-        
-        private static readonly Dictionary<string, string> _users = new();
-
-        public AuthService(ITokenService tokenService)
+        public AuthService(UserManager<ApplicationUser> userManager, ITokenService tokenService, IEmailService emailService)
         {
+            _userManager = userManager;
             _tokenService = tokenService;
+            _emailService = emailService;
         }
 
-        public (bool success, string? errorMessage) Register(string username, string password)
+
+        public async Task<(bool success, string? message)> RegisterAsync(string username, string email, string password)
         {
-            if (_users.ContainsKey(username))
+            var existingUser = await _userManager.FindByNameAsync(username);
+            if (existingUser != null)
                 return (false, "Username already exists.");
 
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-                return (false, "Username and password are required.");
+            var user = new ApplicationUser { UserName = username, Email = email };
 
-             
-            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(password);
-            _users[username] = hashedPassword;
+            var result = await _userManager.CreateAsync(user, password);
+
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(" ", result.Errors.Select(e => e.Description));
+                return (false, errors);
+            }
 
             return (true, null);
         }
 
-        public (bool success, string? token) Login(string username, string password)
+        public async Task<(bool success, string? token)> LoginAsync(string username, string password)
         {
-            if (!_users.ContainsKey(username))
-                return (false, null);
+            var user = await _userManager.FindByNameAsync(username);
+            if (user == null) return (false, null);
 
-            var hashedPassword = _users[username];
-            var isValid = BCrypt.Net.BCrypt.Verify(password, hashedPassword);
-
+            var isValid = await _userManager.CheckPasswordAsync(user, password);
             if (!isValid) return (false, null);
 
             var token = _tokenService.GenerateToken(username);
             return (true, token);
+        }
+
+        public async Task<(bool success, string? errorMessage)> ForgotPasswordAsync(string email)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null) return (false, "Email not found.");
+
+            var resetCode = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
+
+            var emailBody = $"Your password reset code is: {resetCode}";
+            await _emailService.SendEmailAsync(
+                email,
+                "Password Reset Code",
+                emailBody
+            );
+            return (true, null);
+        }
+
+        public async Task<(bool success, string? errorMessage)> ResetPasswordAsync(string username, string resetCode, string newPassword)
+        {
+            var user = await _userManager.FindByNameAsync(username);
+            if (user == null) return (false, "Username not found.");
+
+            var result = await _userManager.ResetPasswordAsync(user, resetCode, newPassword);
+
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(" ", result.Errors.Select(e => e.Description));
+                return (false, errors);
+            }
+
+            return (true, null);
         }
     }
 }
