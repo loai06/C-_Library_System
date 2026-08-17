@@ -6,67 +6,67 @@ using AutoMapper;
 
 namespace LibraryManagementSystem.Services
 {
-   public class CategoryService : ICategoryService
-{
-    private readonly AppDbContext _context;
-    private readonly IMapper _mapper;
-
-    public CategoryService(AppDbContext context, IMapper mapper)
+    public class CategoryService : ICategoryService
     {
-        _context = context;
-        _mapper = mapper;
-    }
+        private readonly AppDbContext _context;
+        private readonly IMapper _mapper;
 
-       public async Task<object> GetAllAsync(int pageNumber, int pageSize, string? search, string? sortBy, bool sortDescending)
-{
-    var query = _context.Categories.AsQueryable();
+        public CategoryService(AppDbContext context, IMapper mapper)
+        {
+            _context = context;
+            _mapper = mapper;
+        }
 
-    if (!string.IsNullOrWhiteSpace(search))
-    {
-        query = query.Where(c => c.Name.Contains(search));
-    }
+        public async Task<object> GetAllAsync(int pageNumber, int pageSize, string? search, string? sortBy, bool sortDescending)
+        {
+            var query = _context.Categories.AsQueryable();
 
-    query = sortBy?.ToLower() switch
-    {
-        "name" => sortDescending ? query.OrderByDescending(c => c.Name) : query.OrderBy(c => c.Name),
-        _ => query.OrderBy(c => c.Id)
-    };
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(c => c.Name.Contains(search));
+            }
 
-    var totalCount = await query.CountAsync();
+            query = sortBy?.ToLower() switch
+            {
+                "name" => sortDescending ? query.OrderByDescending(c => c.Name) : query.OrderBy(c => c.Name),
+                _ => query.OrderBy(c => c.Id)
+            };
 
-    var categories = await query
-        .Skip((pageNumber - 1) * pageSize)
-        .Take(pageSize)
-        .ToListAsync();
+            var totalCount = await query.CountAsync();
 
-    var categoryDtos = _mapper.Map<List<CategoryResponseDto>>(categories);
+            var categories = await query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
 
-    return new
-    {
-        TotalCount = totalCount,
-        PageNumber = pageNumber,
-        PageSize = pageSize,
-        Items = categoryDtos
-    };
-}
+            var categoryDtos = _mapper.Map<List<CategoryResponseDto>>(categories);
 
-       public async Task<CategoryResponseDto?> GetByIdAsync(int id)
-{
-    var category = await _context.Categories.FindAsync(id);
-    return category == null ? null : _mapper.Map<CategoryResponseDto>(category);
-}
+            return new
+            {
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                Items = categoryDtos
+            };
+        }
+
+        public async Task<CategoryResponseDto?> GetByIdAsync(int id)
+        {
+            var category = await _context.Categories.FindAsync(id);
+            return category == null ? null : _mapper.Map<CategoryResponseDto>(category);
+        }
 
         public async Task<CategoryResponseDto> CreateAsync(CategoryCreateDto dto)
-{
-    var category = _mapper.Map<Category>(dto);
-    category.IsDeleted = false;
-    category.CreatedAt = DateTime.UtcNow;
+        {
+            var category = _mapper.Map<Category>(dto);
+            category.IsDeleted = false;
+            category.CreatedAt = DateTime.UtcNow;
 
-    _context.Categories.Add(category);
-    await _context.SaveChangesAsync();
+            _context.Categories.Add(category);
+            await _context.SaveChangesAsync();
 
-    return _mapper.Map<CategoryResponseDto>(category);
-}
+            return _mapper.Map<CategoryResponseDto>(category);
+        }
 
         public async Task<bool> UpdateAsync(int id, CategoryUpdateDto dto)
         {

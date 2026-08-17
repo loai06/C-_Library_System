@@ -15,6 +15,17 @@ namespace LibraryManagementSystem.Controllers
             _authService = authService;
         }
 
+        [HttpPost("register")]
+        public IActionResult Register([FromBody] RegisterDto dto)
+        {
+            var (success, error) = _authService.Register(dto.Username, dto.Password);
+
+            if (!success)
+                return BadRequest(ApiResponse<object>.FailResponse(error!, 400));
+
+            return Ok(ApiResponse<object>.SuccessResponse(new { }, "User registered successfully."));
+        }
+
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginDto dto)
         {

@@ -170,3 +170,4 @@ D:\WepApiProject\mywepapp\LibraryManagemenSystem\bin\Debug\net8.0\runtimes\brows
 D:\WepApiProject\mywepapp\LibraryManagemenSystem\bin\Debug\net8.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
 D:\WepApiProject\mywepapp\LibraryManagemenSystem\bin\Debug\net8.0\AutoMapper.dll
 D:\WepApiProject\mywepapp\LibraryManagemenSystem\bin\Debug\net8.0\AutoMapper.Extensions.Microsoft.DependencyInjection.dll
+D:\WepApiProject\mywepapp\LibraryManagemenSystem\bin\Debug\net8.0\BCrypt-Net-Next.dll

@@ -28,16 +28,16 @@ namespace LibraryManagementSystem.Data
                 .IsRequired();
 
             //Price>0
-             modelBuilder.Entity<Book>()
-            .Property(b => b.Price)
-            .HasColumnType("decimal(18,2)");
+            modelBuilder.Entity<Book>()
+           .Property(b => b.Price)
+           .HasColumnType("decimal(18,2)");
 
             //Relationships
             modelBuilder.Entity<Book>()
                 .HasOne(b => b.Category)
                 .WithMany(c => c.Books)
                 .HasForeignKey(b => b.CategoryId);
-                
+
         }
     }
 }

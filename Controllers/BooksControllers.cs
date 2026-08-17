@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using LibraryManagementSystem.DTOs;
 using LibraryManagementSystem.Services;
-using Microsoft.AspNetCore.Authorization; 
+using Microsoft.AspNetCore.Authorization;
 
 namespace LibraryManagementSystem.Controllers
 {

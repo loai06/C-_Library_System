@@ -8,7 +8,7 @@ namespace LibraryManagementSystem.Mapping
     {
         public MappingProfile()
         {
-            
+
             CreateMap<Category, CategoryResponseDto>();
             CreateMap<CategoryCreateDto, Category>();
             CreateMap<CategoryUpdateDto, Category>();
