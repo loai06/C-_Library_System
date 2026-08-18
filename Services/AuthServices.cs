@@ -52,29 +52,63 @@ namespace LibraryManagementSystem.Services
         public async Task<(bool success, string? errorMessage)> ForgotPasswordAsync(string email)
         {
             var user = await _userManager.FindByEmailAsync(email);
-            if (user == null) return (false, "Email not found.");
 
-            var resetCode = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
+            if (user == null)
+                return (false, "Email not found.");
+
+            var resetCode = RandomNumberGenerator
+                .GetInt32(100000, 1000000)
+                .ToString();
+
+            user.ResetCode = resetCode;
+            user.ResetCodeExpiration = DateTime.UtcNow.AddMinutes(10);
+
+            await _userManager.UpdateAsync(user);
 
             var emailBody = $"Your password reset code is: {resetCode}";
+
             await _emailService.SendEmailAsync(
                 email,
                 "Password Reset Code",
                 emailBody
             );
+
             return (true, null);
         }
 
-        public async Task<(bool success, string? errorMessage)> ResetPasswordAsync(string username, string resetCode, string newPassword)
+        public async Task<(bool success, string? errorMessage)> ResetPasswordAsync(
+     string username,
+     string resetCode,
+     string newPassword)
         {
             var user = await _userManager.FindByNameAsync(username);
-            if (user == null) return (false, "Username not found.");
 
-            var result = await _userManager.ResetPasswordAsync(user, resetCode, newPassword);
+            if (user == null)
+                return (false, "Username not found.");
+
+            if (user.ResetCode == null || user.ResetCode != resetCode)
+                return (false, "Invalid reset code.");
+
+            if (user.ResetCodeExpiration == null ||
+                user.ResetCodeExpiration < DateTime.UtcNow)
+                return (false, "Reset code has expired.");
+
+            var passwordHasher = new PasswordHasher<ApplicationUser>();
+
+            user.PasswordHash = passwordHasher.HashPassword(user, newPassword);
+
+            user.ResetCode = null;
+            user.ResetCodeExpiration = null;
+
+            var result = await _userManager.UpdateAsync(user);
 
             if (!result.Succeeded)
             {
-                var errors = string.Join(" ", result.Errors.Select(e => e.Description));
+                var errors = string.Join(
+                    " ",
+                    result.Errors.Select(e => e.Description)
+                );
+
                 return (false, errors);
             }
 

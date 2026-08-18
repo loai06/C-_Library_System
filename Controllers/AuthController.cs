@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using LibraryManagementSystem.DTOs;
 using LibraryManagementSystem.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace LibraryManagementSystem.Controllers
 {
@@ -51,6 +52,7 @@ namespace LibraryManagementSystem.Controllers
         }
 
         [HttpPost("reset-password")]
+        [AllowAnonymous]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
         {
             var (success, error) = await _authService.ResetPasswordAsync(dto.Username, dto.ResetCode, dto.NewPassword);
