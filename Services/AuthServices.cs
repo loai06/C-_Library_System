@@ -92,25 +92,22 @@ namespace LibraryManagementSystem.Services
             if (user.ResetCodeExpiration == null ||
                 user.ResetCodeExpiration < DateTime.UtcNow)
                 return (false, "Reset code has expired.");
-
-            var passwordHasher = new PasswordHasher<ApplicationUser>();
-
-            user.PasswordHash = passwordHasher.HashPassword(user, newPassword);
-
-            user.ResetCode = null;
-            user.ResetCodeExpiration = null;
-
-            var result = await _userManager.UpdateAsync(user);
+            
+            var identityToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var result = await _userManager.ResetPasswordAsync(user, identityToken, newPassword);
 
             if (!result.Succeeded)
             {
-                var errors = string.Join(
-                    " ",
-                    result.Errors.Select(e => e.Description)
-                );
-
+                var errors = string.Join(" ", result.Errors.Select(e => e.Description));
                 return (false, errors);
             }
+
+            
+            user.ResetCode = null;
+            user.ResetCodeExpiration = null;
+            await _userManager.UpdateAsync(user);
+
+
 
             return (true, null);
         }
